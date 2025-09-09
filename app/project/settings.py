@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'celery',
     'corsheaders',
     'db_logger',
+    'connector',
     # 'livereload', # автоматическая перезагрузка страницы при изменении кода, замедляет работу, на проде выключать livereload.middleware.LiveReloadScript
 
     'user'

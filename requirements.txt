@@ -11,6 +11,7 @@ django-cors-headers
 djangorestframework-simplejwt
 
 requests
+httpx
 six
 
 django-ninja
