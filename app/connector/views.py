@@ -3,6 +3,17 @@ import duckdb, hashlib, time, json, yaml, logging, os
 from pathlib import Path
 from .utils import build_sql
 from ninja_jwt.authentication import JWTAuth
+import re
+
+def q_ident(name: str) -> str:
+    """
+    Безопасно экранирует имя идентификатора для SQL (таблица/схема/поле).
+    Разрешаем [A-Za-z_][A-Za-z0-9_]* без кавычек; иначе — берем в двойные кавычки и удваиваем внутренние.
+    """
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        return name
+    return '"' + name.replace('"', '""') + '"'
+
 
 # (NEW) если есть Django settings — используем BASE_DIR для абсолютных путей
 try:
@@ -60,15 +71,15 @@ def init_snapshot():
             # таблица для такого schema_name создана не будет
             continue
 
-        db.execute(f"DROP TABLE IF EXISTS {duckdb.escape_identifier(schema_name)}")
+        db.execute(f"DROP TABLE IF EXISTS {q_ident(schema_name)}")
         if file_path.suffix.lower() == ".parquet":
             db.execute(
-                f"CREATE TABLE {duckdb.escape_identifier(schema_name)} "
+                f"CREATE TABLE {q_ident(schema_name)} "
                 f"AS SELECT * FROM read_parquet('{file_path.as_posix()}')"
             )
         else:
             db.execute(
-                f"CREATE TABLE {duckdb.escape_identifier(schema_name)} "
+                f"CREATE TABLE {q_ident(schema_name)} "
                 f"AS SELECT * FROM read_csv_auto('{file_path.as_posix()}', header=true)"
             )
 
