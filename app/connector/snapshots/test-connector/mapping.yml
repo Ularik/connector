@@ -12,11 +12,6 @@ schemas:
     path: car.parquet      # файл из твоего манифеста
     primary_key: car_id
 
-  user:
-    type: parquet
-    path: user.parquet      # файл из твоего манифеста
-    primary_key: user_id
-
 groups:
   # Каноническая группа, как мы согласовали ранее
   vehicles:
@@ -27,13 +22,11 @@ groups:
         color:           "$.subject.color"
         car_id:          "$.subject.car_id"
         title:           "$.subject.title"
-        user_id:         "$.subject.user_id"
       # столбцы которые выведутся в ответ SELECT  ID, COLOR, TITLE, USER
       select:
         id: car_id   # id: название к которому приведет шаблон, car_id: непосредственное название в таблице
         color:  color
         title: title
-        user: user_id
 
     transforms:
       - path: $[*].reg_date
