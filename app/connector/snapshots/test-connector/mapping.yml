@@ -12,6 +12,11 @@ schemas:
     path: car.parquet      # файл из твоего манифеста
     primary_key: car_id
 
+  customer:
+    type: parquet
+    path: customer.parquet      # файл из твоего манифеста
+    primary_key: customer_id
+
 groups:
   # Каноническая группа, как мы согласовали ранее
   vehicles:
