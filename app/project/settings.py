@@ -259,6 +259,10 @@ LOGGING = {
             'level': 'INFO',
             'handlers': ['console', 'db_log', 'file_api'],
         },
+        'connector': {
+            'level': 'INFO',
+            'handlers': ['console', 'db_log', 'file_django'],
+        }
     },
 }
 
