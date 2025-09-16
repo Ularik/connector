@@ -1,0 +1,96 @@
+version: 1
+source_id: CARS            # идентификатор источника (что будете указывать в requested_sources)
+
+storage:
+  type: parquet            # читаем Parquet-файл(ы)
+  root: ./connector/snapshots/test-connector   # ПУТЬ к папке со snapshot (поменяй на свой)
+  manifest: manifest.json  # опционально: проверка контрольных сумм
+
+schemas:
+  car:
+    type: parquet
+    path: car.parquet      # файл из твоего манифеста
+    primary_key: car_id
+
+  user:
+    type: parquet
+    path: user.parquet      # файл из твоего манифеста
+    primary_key: user_id
+
+groups:
+  # Каноническая группа, как мы согласовали ранее
+  vehicles:
+    from:
+      schema: car
+      # Фильтрация по этим столбцам
+      where_any:
+        color:           "$.subject.color"
+        car_id:          "$.subject.car_id"
+        title:           "$.subject.title"
+        user_id:         "$.subject.user_id"
+      # столбцы которые выведутся в ответ SELECT  ID, COLOR, TITLE, USER
+      select:
+        id: car_id   # id: название к которому приведет шаблон, car_id: непосредственное название в таблице
+        color:  color
+        title: title
+        user: user_id
+
+    transforms:
+      - path: $[*].reg_date
+        op: to_iso_date       # привести дату к ISO-8601 (YYYY-MM-DD)
+
+    dedupe:
+      key: car_id                # или car_id, если vin не уникален
+
+    # Доп. сведения для трассируемости (можно не трогать)
+    provenance:
+      record_id: car_id
+      updated_at_column: null
+
+#  users:
+#    from:
+#      schema: customer
+#      # Фильтрация по этим столбцам
+#      where_any:
+#        full_name: "$.subject.full_name"
+#        user_id: "$.subject.user_id"
+#      # Столбцы которые выведутся в ответе
+#      select:
+#        id: user_id   # id: название к которому приведет шаблон, car_id: непосредственное название в таблице
+#        full_name: full_name
+#
+#    transforms:
+#      - path: $[*].reg_date
+#        op: to_iso_date       # привести дату к ISO-8601 (YYYY-MM-DD)
+#
+#    dedupe:
+#      key: user_id                # или car_id, если vin не уникален
+#
+#    # Доп. сведения для трассируемости (можно не трогать)
+#    provenance:
+#      record_id: user_id
+#      updated_at_column: null
+#
+#  vehicles_with_users:
+#    from:
+#      schema: car
+#      # таблица от которой зависит car
+#      join:
+#      - schema: "user"
+#        "on": car.user_id = customer.user_id
+#
+#      where_any:
+#        car_id: "$.subject.car_id"
+#
+#      select:
+#        car_id: car.car_id
+#        title: car.title
+#        color: car.color
+#        user_full_name: customer.full_name
+#
+#      dedupe:
+#        key: car_id
+#
+#      provenance:
+#        record_id: car_id
+#        updated_at_column: null

@@ -1,0 +1,15 @@
+{
+  "snapshot_id": "car-2025-09-16T05:34:45.270799Z",
+  "created_at": "2025-09-16T05:34:45.270822Z",
+  "valid_from": "2025-09-16",
+  "tables": {
+    "car": {
+      "file": "car.parquet",
+      "row_count": 2,
+      "primary_key": "car_id"
+    }
+  },
+  "hashes": {
+    "car.parquet": "sha256:6efa40fc0b47a419aed76d4dac7e1d9ad2f7e4dbb00c1b107512fe86e4501f81"
+  }
+}

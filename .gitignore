@@ -23,7 +23,7 @@ media
 venv
 env
 *.env
-!*.env.txt
+!.env.txt
 !*.py.txt
 !requirements*.txt
 celerybeat-schedule
