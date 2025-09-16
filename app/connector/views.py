@@ -3,8 +3,9 @@ import duckdb, hashlib, time, json
 import yaml
 from pathlib import Path
 from .utils import build_sql
-from django.http import JsonResponse
 from ninja_jwt.authentication import JWTAuth
+import atexit
+
 
 router = Router()
 
@@ -22,6 +23,11 @@ STORAGE_ROOT = Path(CFG["storage"]["root"])
 MANIFEST_FILE = STORAGE_ROOT / CFG["storage"].get("manifest", "")
 
 DB = duckdb.connect(STORAGE_ROOT / "_cache.duckdb")
+
+
+@atexit.register
+def close_db():
+    DB.close()
 
 # --- Инициализация снапшота ---
 # --- Создается база в duckdb ---
