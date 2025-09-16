@@ -3,8 +3,9 @@ import duckdb, hashlib, time, json, yaml
 from pathlib import Path
 from .utils import build_sql
 from ninja_jwt.authentication import JWTAuth
+import logging
 
-
+logger = logging.getLogger(__name__)
 router = Router()
 
 # --- Конфиг ---
@@ -24,6 +25,8 @@ def get_db():
     if _DB is None:
         db_path = STORAGE_ROOT / "_cache.duckdb"
         _DB = duckdb.connect(db_path)
+        logger.warning("📋 Tables in DB:", _DB.execute("SHOW TABLES").fetchall())
+        print("car.parquet exists:", (STORAGE_ROOT / "car.parquet").exists())
     return _DB
 
 
