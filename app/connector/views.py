@@ -69,21 +69,32 @@ def lookup(request, payload: dict = Body(...)):
     con = get_db()
 
     for group_name in requested_groups:
-        group_cfg = (CFG.get("groups") or {}).get(group_name)
-        schemas_group = CFG.get("schemas")
+        group_cfg = (CFG.get("groups") or {}).get(group_name)   # выбираем нужную группу из "groups" по названию "group_name"
+        schemas = CFG.get("schemas")
         if not group_cfg:
             logger.info(f'Такой группы в mapping.yml нет: {group_name}')
             continue
 
         sql = build_sql(group_cfg, subject)
 
-        schema_name = group_cfg['from']['schema']
-        schema_cfg = schemas_group.get(schema_name)
+        schema = group_cfg['from']
+        schema_name = schema['schema']
+        join_schema = schema.get('join')
+
+        # schema_name
+        schema_cfg = schemas.get(schema_name)
         parquet_file = schema_cfg.get('path')
         parquet_path = (STORAGE_ROOT / parquet_file).resolve()
 
+        sql = sql.replace(f"FROM {schema_name}", f"FROM read_parquet('{parquet_path}') AS {schema_name}")
+        # если есть JOIN в группе group_cfg
+        if join_schema:
+            join_schema_name = join_schema[0].get("schema")
+            schema_cfg = schemas.get(join_schema_name)
+            parquet_file = schema_cfg.get("path")
+            parquet_path = (STORAGE_ROOT / parquet_file).resolve()
+            sql = sql.replace(f"JOIN {join_schema_name}", f"JOIN read_parquet('{parquet_path}') AS {join_schema_name}")
 
-        sql = sql.replace(f"FROM {schema_name}", f"FROM read_parquet('{parquet_path}')")
         data[group_name] = con.execute(sql).fetch_arrow_table().to_pylist()
 
 
