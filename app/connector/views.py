@@ -8,14 +8,6 @@ import os
 from project.settings_local import SNAPSHOT_PATH, SECRETS_PATH
 
 
-# для jws токена
-PRIVATE_PEM = None
-
-if os.path.exists(SECRETS_PATH):
-    with open(f"{SECRETS_PATH}/private.pem", "rb") as f:
-        PRIVATE_PEM = f.read()
-
-
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -63,7 +55,7 @@ def check_hash(request):
             logger.warning(f"Failed to read manifest.json: {e}")
 
 
-@router.post("/v1/lookup", response={200: dict, 400: str}, auth=JWTAuth())
+@router.post("/v1/lookup", auth=JWTAuth())
 def lookup(request, payload: dict = Body(...)):
 
     source_id = payload.get("source_id", "CARS")
@@ -112,9 +104,14 @@ def lookup(request, payload: dict = Body(...)):
         "data": data
     }
 
-    jws_token = jwt.encode(response, PRIVATE_PEM, algorithm="RS256")
+    private_pem_path = f"{SECRETS_PATH}/private.pem"
+    if os.path.exists(private_pem_path):
+        with open(private_pem_path, "rb") as f:
+            private_pem = f.read()
+            jws_token = jwt.encode(response, private_pem, algorithm="RS256")
+        return {"jwt": jws_token}
 
-    return 200, {"jwt": jws_token}
+    return response
 
 
 # --- API endpoints ---
