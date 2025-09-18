@@ -5,7 +5,7 @@ from .utils import build_sql
 from ninja_jwt.authentication import JWTAuth
 from jose import jwt
 import os
-from project.settings_local import SECRETS_PATH
+from project.settings_local import SNAPSHOT_PATH, SECRETS_PATH
 
 
 # для jws токена
@@ -20,19 +20,11 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
-# (NEW) если есть Django settings — используем BASE_DIR для абсолютных путей
-try:
-    from django.conf import settings
-    BASE_DIR = Path(settings.BASE_DIR)
-except Exception:
-    BASE_DIR = Path(__file__).resolve().parents[2]  # fallback
-
-
 # --- Прописываем пути к файлам снапшота---
-CFG_PATH = (BASE_DIR / "connector/snapshots/test-connector/mapping.yml").resolve()
+CFG_PATH = Path(f"{SNAPSHOT_PATH}/mapping.yml").resolve()
 CFG = yaml.safe_load(CFG_PATH.read_text(encoding="utf-8"))
 
-STORAGE_ROOT = (BASE_DIR / CFG["storage"]["root"]).resolve()
+STORAGE_ROOT = Path(CFG["storage"]["root"])
 STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
 
 # переменная определяет наличие соединения к duckdb
