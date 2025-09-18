@@ -31,3 +31,4 @@ celerybeat-schedule
 settings_local.py
 /db-data
 /app/connector/snapshots
+/app/connector/secrets

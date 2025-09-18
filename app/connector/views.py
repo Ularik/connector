@@ -1,9 +1,19 @@
 from ninja import Router, Body
-import duckdb, hashlib, time, json, yaml, logging, os
+import duckdb, hashlib, time, json, yaml, logging
 from pathlib import Path
 from .utils import build_sql
 from ninja_jwt.authentication import JWTAuth
-import re
+from jose import jwt
+import os
+from project.settings_local import SECRETS_PATH
+
+
+# для jws токена
+PRIVATE_PEM = None
+
+if os.path.exists(SECRETS_PATH):
+    with open(f"{SECRETS_PATH}/private.pem", "rb") as f:
+        PRIVATE_PEM = f.read()
 
 
 router = Router()
@@ -18,27 +28,15 @@ except Exception:
     BASE_DIR = Path(__file__).resolve().parents[2]  # fallback
 
 
-# --- Конфиг (ABS paths + существование каталога) ---
+# --- Прописываем пути к файлам снапшота---
 CFG_PATH = (BASE_DIR / "connector/snapshots/test-connector/mapping.yml").resolve()
 CFG = yaml.safe_load(CFG_PATH.read_text(encoding="utf-8"))
 
 STORAGE_ROOT = (BASE_DIR / CFG["storage"]["root"]).resolve()
 STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
 
-MANIFEST_FILE = STORAGE_ROOT / CFG["storage"].get("manifest", "manifest.json")
-
+# переменная определяет наличие соединения к duckdb
 _DB = None
-_snapshot_initialized = False  # флаг в пределах процесса
-
-
-# проверка подписи
-
-# manifest = {}
-# if MANIFEST_FILE.exists():
-#     try:
-#         manifest = json.loads(MANIFEST_FILE.read_text(encoding="utf-8"))
-#     except Exception as e:
-#         logger.warning(f"Failed to read manifest.json: {e}")
 
 
 def get_db():
@@ -47,17 +45,33 @@ def get_db():
     if _DB is None:
         _DB = duckdb.connect()
         logger.info(f"Connected to DuckDB")
-
     return _DB
 
 
-# --- API endpoints ---
-@router.get('/get-info', response={200: str, 400: str})
-def get_list(request):
-    return 200, 'good connect'
+@router.get("/v1/check-hash", response={200: str, 400: str}, auth=JWTAuth())
+def check_hash(request):
+    # проверка подписи
+    schemas = CFG["schemas"]
+    manifest_file = STORAGE_ROOT / CFG["storage"].get("manifest", "manifest.json")
+
+    if manifest_file.exists():
+        try:
+            manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+            hashes_dict = manifest.get("hashes", {})
+            for schema in schemas:
+                parquet_file_name = schemas[schema].get('path')
+                parquet_file_path = STORAGE_ROOT / parquet_file_name
+                exp = hashes_dict.get(parquet_file_name).split(":", 1)[1]
+                real = hashlib.sha256(parquet_file_path.read_bytes()).hexdigest()
+                if real != exp:
+                    return 400, 'Хэши не совпадают'
+                return 200, 'Хэши совпали'
+
+        except Exception as e:
+            logger.warning(f"Failed to read manifest.json: {e}")
 
 
-@router.post("/v1/lookup", auth=JWTAuth())
+@router.post("/v1/lookup", response={200: dict, 400: str}, auth=JWTAuth())
 def lookup(request, payload: dict = Body(...)):
 
     source_id = payload.get("source_id", "CARS")
@@ -97,12 +111,21 @@ def lookup(request, payload: dict = Body(...)):
 
         data[group_name] = con.execute(sql).fetch_arrow_table().to_pylist()
 
-
     latency = int((time.time() - start) * 1000)
-    return {
+    response = {
         "source_id": source_id,
         "status": "ok",
         "source_status": "live",
         "latency_ms": latency,
         "data": data
     }
+
+    jws_token = jwt.encode(response, PRIVATE_PEM, algorithm="RS256")
+
+    return 200, {"jwt": jws_token}
+
+
+# --- API endpoints ---
+@router.get('/get-info', response={200: str, 400: str})
+def get_list(request):
+    return 200, 'good connect'
