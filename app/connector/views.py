@@ -6,6 +6,7 @@ from ninja_jwt.authentication import JWTAuth
 from jose import jwt
 import os
 from project.settings_local import SNAPSHOT_PATH, SECRETS_PATH
+import datetime
 
 
 router = Router()
@@ -57,6 +58,14 @@ def check_hash(request):
 
 @router.post("/v1/lookup", auth=JWTAuth())
 def lookup(request, payload: dict = Body(...)):
+    """
+    Пример тела запроса
+    {
+      "source_id": "CARS",
+      "subject": { "car_id": 1 },
+      "requested_fields": ["vehicles"]
+    }
+    """
 
     source_id = payload.get("source_id", "CARS")
     subject = payload.get("subject", {})
@@ -74,7 +83,6 @@ def lookup(request, payload: dict = Body(...)):
             continue
 
         sql = build_sql(group_cfg, subject)
-
         schema = group_cfg['from']
         schema_name = schema['schema']
         join_schema = schema.get('join')
@@ -93,7 +101,13 @@ def lookup(request, payload: dict = Body(...)):
             parquet_path = (STORAGE_ROOT / parquet_file).resolve()
             sql = sql.replace(f"JOIN {join_schema_name}", f"JOIN read_parquet('{parquet_path}') AS {join_schema_name}")
 
-        data[group_name] = con.execute(sql).fetch_arrow_table().to_pylist()
+        group_data = con.execute(sql).fetch_arrow_table().to_pylist()
+        for row in group_data:
+            for k, v in row.items():
+                if isinstance(v, (datetime.date, datetime.datetime)):
+                    row[k] = v.isoformat()
+
+        data[group_name] = group_data
 
     latency = int((time.time() - start) * 1000)
     response = {
@@ -104,12 +118,12 @@ def lookup(request, payload: dict = Body(...)):
         "data": data
     }
 
-    private_pem_path = f"{SECRETS_PATH}/private.pem"
-    if os.path.exists(private_pem_path):
-        with open(private_pem_path, "rb") as f:
-            private_pem = f.read()
-            jws_token = jwt.encode(response, private_pem, algorithm="RS256")
-        return {"jwt": jws_token}
+    # private_pem_path = f"{SECRETS_PATH}/private.pem"
+    # if os.path.exists(private_pem_path):
+    #     with open(private_pem_path, "rb") as f:
+    #         private_pem = f.read()
+    #         jws_token = jwt.encode(response, private_pem, algorithm="RS256")
+    #     return {"jwt": jws_token}
 
     return response
 

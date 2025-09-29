@@ -46,7 +46,7 @@ def build_sql(group_cfg, subject: dict) -> str:
                 conditions.append(f"{field} = {val}")
 
     if conditions:
-        sql += " WHERE " + " OR ".join(conditions)
+        sql += " WHERE " + " AND ".join(conditions)
 
     return sql
 
