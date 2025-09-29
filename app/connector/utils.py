@@ -49,11 +49,3 @@ def build_sql(group_cfg, subject: dict) -> str:
         sql += " WHERE " + " AND ".join(conditions)
 
     return sql
-
-#
-# with open(f'secrets/public.pem', 'rb') as f:
-#     public_pem = f.read()
-#
-# test = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzb3VyY2VfaWQiOiJDQVJTIiwic3RhdHVzIjoib2siLCJzb3VyY2Vfc3RhdHVzIjoibGl2ZSIsImxhdGVuY3lfbXMiOjEsImRhdGEiOnsidmVoaWNsZXMiOlt7ImlkIjoxLCJjb2xvciI6ImdyZWVuIiwidGl0bGUiOiJnb2xmIiwidXNlcl9pZCI6Mn1dfX0.Qqc0TciN0wlGLKJ6HhDwoRVmFxe0Wvx1Y5i9_rSYEFHHEDmMrKqXegvG8x2JCCYFrjZDirgvXOzXN1zCosYm57-vWV0IeZg6GlHAkrOzG3RE0584EoewLHv07A2FJrQVPuOc75g8EaC5hzgCyfazi2JABkIhDVXzN0n--J0akuL-OilcKDff57qYNCCIrQZ5cDgUlEFqy-x8L513GKgTiIWlzsBqhPa1_YW3Y_uvvMbDZBDOJeuz9tc_cL_QrVOdE-w5O9APdksC4UNBrBi9LhJ9EFv8eao4_O0Yvv-7K16CSpahTcUh8JdS0BeS51N8imOMq3VzU-LB90qepOUfjA'
-# print(jwt.decode(test, public_pem, algorithms=["RS256"])
-# )

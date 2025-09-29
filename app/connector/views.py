@@ -118,12 +118,12 @@ def lookup(request, payload: dict = Body(...)):
         "data": data
     }
 
-    # private_pem_path = f"{SECRETS_PATH}/private.pem"
-    # if os.path.exists(private_pem_path):
-    #     with open(private_pem_path, "rb") as f:
-    #         private_pem = f.read()
-    #         jws_token = jwt.encode(response, private_pem, algorithm="RS256")
-    #     return {"jwt": jws_token}
+    private_pem_path = f"{SECRETS_PATH}/private.pem"
+    if os.path.exists(private_pem_path):
+        with open(private_pem_path, "rb") as f:
+            private_pem = f.read()
+            jws_token = jwt.encode(response, private_pem, algorithm="RS256")
+        return {"jwt": jws_token}
 
     return response
 
