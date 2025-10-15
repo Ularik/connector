@@ -2,7 +2,7 @@ from duckdb.duckdb import limit
 from ninja import Router, Body
 import duckdb, hashlib, time, json, yaml, logging
 from pathlib import Path
-from .utils import build_sql, build_sql_like
+from .utils import build_sql
 from ninja_jwt.authentication import JWTAuth
 from jose import jwt
 import os
@@ -60,58 +60,6 @@ def check_hash(request):
 
         except Exception as e:
             logger.warning(f"Failed to read manifest.json: {e}")
-
-
-@router.post("/v1/lookup-like", response={200: dict, 400: str}, auth=JWTAuth())
-def lookup_like(request, payload: dict = Body(...)):
-    """
-    Пример тела запроса
-    {
-      "source_id": "CARS",
-      "subject": { "gov_plate": "01KG517AUF" },
-      "requested_fields": ["vehicles"]
-    }
-    """
-
-    source_id = payload.get("source_id", "CARS")
-    subject = payload.get("subject", {})
-    requested_groups = payload.get("requested_fields", []) or []
-
-    start = time.time()
-    data = {}
-    con = get_db()
-
-    group_name = requested_groups[0]
-    group_cfg = CFG.get("groups", {}).get(group_name)  # выбираем нужную группу из "groups" по названию "group_name"
-    if not group_cfg:
-        logger.info(f'Такой группы в mapping.yml нет: {group_name}')
-        return 400, f'Такой группы в mapping.yml нет: {group_name}'
-
-    sql = build_sql_like(group_cfg, subject)  # готовая sql команда для базы
-
-    ### адаптируем sql для обращения к parquet файлу ###
-    sql_parquet = sql_convert_parquet(group_cfg, sql)
-
-    ### обращаемся к parquet файлу и получаем данные ###
-    group_data = con.execute(sql_parquet).fetch_arrow_table().to_pylist()
-    for row in group_data:
-        for k, v in row.items():
-            if isinstance(v, (datetime.date, datetime.datetime)):
-                row[k] = v.isoformat()
-
-    data[group_name] = group_data
-
-    latency = int((time.time() - start) * 1000)
-    response = {
-        "source_id": source_id,
-        "status": "ok",
-        "source_status": "live",
-        "latency_ms": latency,
-        "data": data
-    }
-
-    response = jwt_encode_service(response)
-    return 200, response
 
 
 @router.post("/v1/lookup", auth=JWTAuth())
