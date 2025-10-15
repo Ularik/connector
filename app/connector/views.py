@@ -1,3 +1,4 @@
+from duckdb.duckdb import limit
 from ninja import Router, Body
 import duckdb, hashlib, time, json, yaml, logging
 from pathlib import Path
@@ -8,6 +9,7 @@ import os
 from project.settings_local import SNAPSHOT_PATH, SECRETS_PATH
 import datetime
 import base64
+from pprint import pprint
 
 
 router = Router()
@@ -117,33 +119,36 @@ def lookup(request, payload: dict = Body(...)):
     """
     Пример тела запроса:
     {
-      "source_id": "CARS",
+      "requested_sources": "CARS",
       "subject": { "gov_plate": "01KG517AUF" },
       "requested_fields": ["vehicles"],
-      "page": 1,
-      "page_size": 500
+      "paging": {"limit": 100, "offset": 0, "returned": 100, "total": 980, "has_more": true, "next_offset":400}
     }
     """
 
-    source_id = payload.get("source_id", "CARS")
+    source_id = payload.get("requested_sources", "DEMO")
     subject = {k: v for k, v in payload.get("subject", {}).items() if bool(v)}
     requested_groups = payload.get("requested_fields", []) or []
-
-    page = int(payload.get("page", 1))
-    page_size = int(payload.get("page_size", 500))
-    offset = (page - 1) * page_size
 
     start = time.time()
     data = {}
     con = get_db()
 
     for group_name in requested_groups:
+        paging = payload.get("paging", {})
+        offset = int(paging.get("offset", 0))
+        limit = int(paging.get("limit", 500))
+
         group_cfg = CFG.get("groups", {}).get(group_name)
         if not group_cfg:
             logger.info(f'Такой группы в mapping.yml нет: {group_name}')
             continue
 
         sql = build_sql(group_cfg, subject)
+
+        if sql is None:
+            continue
+
         sql_parquet = sql_convert_parquet(group_cfg, sql)
 
         # Подсчёт общего количества строк
@@ -151,7 +156,8 @@ def lookup(request, payload: dict = Body(...)):
         total_rows = con.execute(count_sql).fetchone()[0]
 
         # Добавляем пагинацию
-        paginated_sql = f"{sql_parquet} LIMIT {page_size} OFFSET {offset}"
+        paginated_sql = f"{sql_parquet} LIMIT {limit} OFFSET {offset}"  # return 0 - 100 results
+
         # Получаем только текущую страницу
         result = con.execute(paginated_sql).fetch_arrow_table()
         group_data = []
@@ -164,12 +170,19 @@ def lookup(request, payload: dict = Body(...)):
                         row[k] = base64.b64encode(v).decode("utf-8")
                 group_data.append(row)
 
+        has_next = True
+        next_offset = limit + offset
+        if total_rows < limit + offset:
+            has_next = False
+            next_offset = False
+
         # Добавляем метаданные о пагинации
         data[group_name] = {
             "total": total_rows,
-            "page": page,
-            "page_size": page_size,
-            "has_next": offset + page_size < total_rows,
+            "offset": offset,
+            "limit": limit,
+            "has_next": has_next,
+            "next_offset": next_offset,
             "results": group_data
         }
 

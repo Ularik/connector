@@ -32,8 +32,7 @@ def build_sql(group_cfg, subject: dict) -> str:
             conditions.append(f"{field} = {val}")
 
     if not conditions:
-        sql_only_select += " LIMIT 1"
-        return sql_only_select
+        return None
 
     sql = sql_only_select + " WHERE " + " AND ".join(conditions)
     return sql
