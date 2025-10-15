@@ -119,9 +119,9 @@ def lookup(request, payload: dict = Body(...)):
     """
     Пример тела запроса:
     {
-      "requested_sources": "CARS",
-      "subject": { "gov_plate": "01KG517AUF" },
-      "requested_fields": ["vehicles"],
+      "requested_sources": "DEMO",
+      "subject": { "person_lastname_kyr": "ОСМОНАЛИЕВ" },
+      "requested_fields": ["vehicles", "passports"],
       "paging": {"limit": 100, "offset": 0, "returned": 100, "total": 980, "has_more": true, "next_offset":400}
     }
     """
@@ -161,8 +161,10 @@ def lookup(request, payload: dict = Body(...)):
         # Получаем только текущую страницу
         result = con.execute(paginated_sql).fetch_arrow_table()
         group_data = []
+        returned = 0
         for batch in result.to_batches():
             for row in batch.to_pylist():
+                returned += 1
                 for k, v in row.items():
                     if isinstance(v, (datetime.date, datetime.datetime)):
                         row[k] = v.isoformat()
@@ -179,6 +181,7 @@ def lookup(request, payload: dict = Body(...)):
         # Добавляем метаданные о пагинации
         data[group_name] = {
             "total": total_rows,
+            "returned": returned,
             "offset": offset,
             "limit": limit,
             "has_next": has_next,
