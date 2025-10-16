@@ -103,7 +103,6 @@ def lookup(request, payload: dict = Body(...)):
 
         # Подсчёт общего количества строк
         count_sql = f"SELECT COUNT(*) AS total FROM ({sql_parquet})"
-        logger.info(sql_parquet)
         total_rows = con.execute(count_sql).fetchone()[0]
 
         # Добавляем пагинацию
