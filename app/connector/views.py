@@ -68,14 +68,14 @@ def lookup(request, payload: dict = Body(...)):
     Пример тела запроса:
     {
       "requested_sources": "DEMO",
-      "subject": { "person_lastname_kyr": "ОСМОНАЛИЕВ" },
-      "requested_fields": ["vehicles", "passports"],
+      "subject": { "person_lastname_kyr": "Осмоналиев" },
+      "requested_fields": ["passports_and_photo_and_parents"],
       "paging": {"limit": 100, "offset": 0, "returned": 100, "total": 980, "has_more": true, "next_offset":400}
     }
     """
 
     source_id = payload.get("requested_sources", "DEMO")
-    subject = {k: v for k, v in payload.get("subject", {}).items() if bool(v)}
+    subject = {k: v.upper() for k, v in payload.get("subject", {}).items() if bool(v)}
     requested_groups = payload.get("requested_fields", []) or []
 
     start = time.time()
