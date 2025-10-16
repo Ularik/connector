@@ -57,8 +57,8 @@ def build_sql(group_cfg, subject: dict) -> str:
     for field, path in from_cfg["where_any"].items():
         if field in subject:
             val = subject[field]
-            if bool(re.search(r'\d{4}-\d{2}-\d{2}', val)):
-                conditions.append(f"{field} = '{val}'")
+            if bool(re.search(r'^\d{4}(-\d{2}){0,2}$', val)):
+                conditions.append(f"CAST({field} AS VARCHAR) LIKE '%{val}%'")
             else:
                 conditions.append(f"{field} LIKE '%{val}%'")
 
