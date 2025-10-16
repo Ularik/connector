@@ -88,6 +88,7 @@ def lookup(request, payload: dict = Body(...)):
         limit = int(paging.get("limit", 500))
 
         group_cfg = CFG.get("groups", {}).get(group_name)
+
         if not group_cfg:
             logger.info(f'Такой группы в mapping.yml нет: {group_name}')
             continue
@@ -98,6 +99,7 @@ def lookup(request, payload: dict = Body(...)):
             continue
 
         sql_parquet = sql_convert_parquet(group_cfg, sql)
+        pprint(sql_parquet)
 
         # Подсчёт общего количества строк
         count_sql = f"SELECT COUNT(*) AS total FROM ({sql_parquet})"
@@ -105,7 +107,7 @@ def lookup(request, payload: dict = Body(...)):
 
         # Добавляем пагинацию
         paginated_sql = f"{sql_parquet} LIMIT {limit} OFFSET {offset}"  # return 0 - 100 results
-
+        pprint(paginated_sql)
         # Получаем только текущую страницу
         result = con.execute(paginated_sql).fetch_arrow_table()
         group_data = []
@@ -116,8 +118,7 @@ def lookup(request, payload: dict = Body(...)):
                 for k, v in row.items():
                     if isinstance(v, (datetime.date, datetime.datetime)):
                         row[k] = v.isoformat()
-                    elif k in ('photo', 'signature') and isinstance(v, (bytes, bytearray)):
-                        row[k] = base64.b64encode(v).decode("utf-8")
+
                 group_data.append(row)
 
         has_next = True
@@ -156,7 +157,7 @@ def sql_convert_parquet(group_cfg, sql) -> str:
     """
     schema = group_cfg['from']
     schema_name = schema['schema']
-    join_schema = schema.get('join')
+    join_schemas = schema.get('join')
 
     # schema_name
     schema_cfg = CFG.get("schemas").get(schema_name)
@@ -165,15 +166,16 @@ def sql_convert_parquet(group_cfg, sql) -> str:
 
     sql = sql.replace(f"FROM {schema_name}", f"FROM read_parquet('{parquet_path}') AS {schema_name}")
     # если есть JOIN в группе group_cfg
-    if join_schema:
-        join_schema_name = join_schema[0].get("schema")
-        schema_cfg = CFG.get("schemas").get(join_schema_name)
-        parquet_file = schema_cfg.get("path")
-        parquet_path = (STORAGE_ROOT / parquet_file).resolve()
-        if join_schema_name == 'document_images':
-            sql = sql.replace(f"JOIN {join_schema_name}", f"JOIN '{parquet_path}/*.parquet' AS {join_schema_name}")
-        else:
-            sql = sql.replace(f"JOIN {join_schema_name}", f"JOIN read_parquet('{parquet_path}') AS {join_schema_name}")
+    if join_schemas:
+        for join_schema in join_schemas:
+            join_schema_name = join_schema.get("schema")
+            schema_cfg = CFG.get("schemas").get(join_schema_name)
+            parquet_file = schema_cfg.get("path")
+            parquet_path = (STORAGE_ROOT / parquet_file).resolve()
+            if join_schema_name == 'document_images':
+                sql = sql.replace(f"FROM {join_schema_name}", f"FROM read_parquet('{parquet_path}/*.parquet') AS {join_schema_name}")
+            else:
+                sql = sql.replace(f"FROM {join_schema_name}", f"FROM read_parquet('{parquet_path}') AS {join_schema_name}")
 
     return sql
 
