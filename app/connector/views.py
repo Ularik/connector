@@ -103,11 +103,11 @@ def lookup(request, payload: dict = Body(...)):
 
         # Подсчёт общего количества строк
         count_sql = f"SELECT COUNT(*) AS total FROM ({sql_parquet})"
+        logger.info(sql_parquet)
         total_rows = con.execute(count_sql).fetchone()[0]
 
         # Добавляем пагинацию
         paginated_sql = f"{sql_parquet} LIMIT {limit} OFFSET {offset}"  # return 0 - 100 results
-        pprint(paginated_sql)
         # Получаем только текущую страницу
         result = con.execute(paginated_sql).fetch_arrow_table()
         group_data = []
