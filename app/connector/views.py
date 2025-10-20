@@ -69,14 +69,14 @@ def lookup(request, payload: dict = Body(...)):
     {
       "requested_sources": "DEMO",
       "subject": { "person_lastname_kyr": "Осмоналиев" },
-      "requested_fields": ["passports_and_photo_and_parents"],
+      "requested_groups": ["passports_general"],
       "paging": {"limit": 100, "offset": 0, "returned": 100, "total": 980, "has_more": true, "next_offset":400}
     }
     """
 
     source_id = payload.get("requested_sources", "DEMO")
     subject = {k: v.upper() for k, v in payload.get("subject", {}).items() if bool(v)}
-    requested_groups = payload.get("requested_fields", []) or []
+    requested_groups = payload.get("requested_groups", []) or []
 
     start = time.time()
     data = {}
