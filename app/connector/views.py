@@ -76,6 +76,8 @@ def lookup(request, payload: dict = Body(...)):
 
     source_id = payload.get("requested_sources", "DEMO")
     subject = {k: v.upper() for k, v in payload.get("subject", {}).items() if bool(v)}
+    if not subject:
+        return {'204': 'Все поля пустые'}
     requested_groups = payload.get("requested_groups", []) or []
 
     start = time.time()
@@ -92,7 +94,6 @@ def lookup(request, payload: dict = Body(...)):
         if not group_cfg:
             logger.info(f'Такой группы в mapping.yml нет: {group_name}')
             continue
-
         sql = build_sql(group_cfg, subject)
 
         if sql is None:
@@ -114,10 +115,6 @@ def lookup(request, payload: dict = Body(...)):
         for batch in result.to_batches():
             for row in batch.to_pylist():
                 returned += 1
-                for k, v in row.items():
-                    if isinstance(v, (datetime.date, datetime.datetime)):
-                        row[k] = v.isoformat()
-
                 group_data.append(row)
 
         has_next = True
@@ -177,57 +174,6 @@ def sql_convert_parquet(group_cfg, sql) -> str:
                 sql = sql.replace(f"FROM {join_schema_name}", f"FROM read_parquet('{parquet_path}') AS {join_schema_name}")
 
     return sql
-
-
-@router.post('/get-photo', response={200: dict, 400: str}, auth=JWTAuth())
-def get_images(request, payload: dict = Body(...)):  # 100009209574
-    source_id = payload.get("source_id", "CARS")
-    subject = payload.get("subject", {})
-    requested_groups = payload.get("requested_fields", []) or []
-
-    start = time.time()
-    data = {}
-    con = get_db()
-
-    if 'document_images' in requested_groups:
-
-        group_name = requested_groups[0]
-        group_cfg = CFG.get("groups", {}).get(group_name)  # выбираем нужную группу из "groups" по названию "group_name"
-        if not group_cfg:
-            logger.info(f'Такой группы в mapping.yml нет: {group_name}')
-            return 400, f'Такой группы в mapping.yml нет: {group_name}'
-
-        sql = build_sql(group_cfg, subject)  # готовая sql команда для базы
-
-        ### адаптируем sql для обращения к parquet файлу ###
-        schema_name = group_cfg['from']['schema']
-        schema_cfg = CFG.get("schemas").get(schema_name)
-        parquet_file = schema_cfg['path']
-        parquet_path = (STORAGE_ROOT / parquet_file).resolve()
-        sql_parquet = sql.replace(f"FROM {schema_name}", f"FROM '{parquet_path}/*.parquet' AS {schema_name}")
-
-        ### обращаемся к parquet файлу и получаем данные ###
-        group_data = con.execute(sql_parquet).fetch_arrow_table().to_pylist()
-        for row in group_data:
-            for k, v in row.items():
-                if k in ('photo', 'signature'):
-                    encoded_photo = base64.b64encode(v).decode("utf-8")
-                    row[k] = encoded_photo
-
-        data[group_name] = group_data
-
-    latency = int((time.time() - start) * 1000)
-    response = {
-        "source_id": source_id,
-        "status": "ok",
-        "source_status": "live",
-        "latency_ms": latency,
-        "data": data
-    }
-
-    response = jwt_encode_service(response)
-
-    return response
 
 
 def jwt_encode_service(body):
