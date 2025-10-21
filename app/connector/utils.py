@@ -81,7 +81,7 @@ def sql_select_only(group_cfg, subject):
                 join_cols.setdefault(join_schema_name, []).append(f"{alias}:=base64({src})")
             else:
                 join_cols.setdefault(join_schema_name, []).append(f"{alias}:={src}")
-        else:
+        elif join_schema_name == schema:
             cols.append(f"{src} AS {alias}")
 
     join_selects = {}
@@ -119,7 +119,7 @@ def build_sql(group_cfg, subject: dict) -> str:
 
     # WHERE
     conditions = []
-    for field, path in from_cfg["where_any"].items():
+    for field, _ in from_cfg["where_any"].items():
         if field in subject:
             val = subject[field]
 
@@ -127,7 +127,7 @@ def build_sql(group_cfg, subject: dict) -> str:
                 join_subjects[field] = val
                 continue
 
-            if bool(re.search(r'^\d{4}(-\d{2}){0,2}$', val)):  # проверка на дату, для запроса к базе
+            if bool(re.search(r'^\d{4}(-\d{2}){0,2}$', val)):   # проверка на дату, для запроса к базе
                 conditions.append(f"CAST({field} AS VARCHAR) LIKE '%{val}%'")
             else:
                 conditions.append(f"{field} LIKE '%{val}%'")
@@ -137,7 +137,10 @@ def build_sql(group_cfg, subject: dict) -> str:
     # JOIN
     if "join" in from_cfg:
         for j in from_cfg["join"]:
-            sql_only_select += f" JOIN ({join_selects[j['schema']]}) {j['schema']} ON {j['on']}"
+            join_schema_name = j['schema']
+            if join_schema_name not in join_selects:
+                continue
+            sql_only_select += f" LEFT JOIN ({join_selects[join_schema_name]}) {join_schema_name} ON {j['on']}"
 
     sql = sql_only_select
     if conditions:

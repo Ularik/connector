@@ -95,12 +95,12 @@ def lookup(request, payload: dict = Body(...)):
             logger.info(f'Такой группы в mapping.yml нет: {group_name}')
             continue
         sql = build_sql(group_cfg, subject)
-
+        pprint(sql)
         if sql is None:
             continue
 
         sql_parquet = sql_convert_parquet(group_cfg, sql)
-        pprint(sql_parquet)
+
 
         # Подсчёт общего количества строк
         count_sql = f"SELECT COUNT(*) AS total FROM ({sql_parquet})"
@@ -144,6 +144,38 @@ def lookup(request, payload: dict = Body(...)):
     }
 
     return jwt_encode_service(response)
+
+
+@router.get('test-tables')
+def get_test(request):
+    formularerr = CFG.get("groups", {}).get('tformularerr')
+    tresult = CFG.get("groups", {}).get('tresult')
+
+    formularerr_cfg = formularerr["from"]
+    tresult_cfg = tresult['from']
+
+    formularerr_schema_path = CFG['schemas'].get('tformularerr').get('path')
+    tresult_schema_path = CFG['schemas'].get('tresult').get('path')
+
+    path_one = (STORAGE_ROOT / formularerr_schema_path).resolve()
+    path_two = (STORAGE_ROOT / tresult_schema_path).resolve()
+
+    con = get_db()
+
+    select_formular = rf"SELECT * FROM read_parquet('{path_one}') AS tformularerr LIMIT 1"
+    select_result = rf"SELECT * FROM read_parquet('{path_two}') AS tresult LIMIT 1"
+
+    result_formularerr = con.execute(select_formular).fetch_arrow_table()
+    result_result = con.execute(select_result).fetch_arrow_table()
+    data = []
+    for batch in result_formularerr.to_batches():
+        for row in batch.to_pylist():
+            data.append(row)
+
+    return {
+        1: data,
+    }
+
 
 
 def sql_convert_parquet(group_cfg, sql) -> str:
