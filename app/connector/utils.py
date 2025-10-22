@@ -81,7 +81,7 @@ def sql_select_only(group_cfg, subject):
                 join_cols.setdefault(join_schema_name, []).append(f"{alias}:=base64({src})")
             else:
                 join_cols.setdefault(join_schema_name, []).append(f"{alias}:={src}")
-        elif join_schema_name == schema:
+        else:
             cols.append(f"{src} AS {alias}")
 
     join_selects = {}
